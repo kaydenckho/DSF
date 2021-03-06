@@ -1,0 +1,11 @@
+FROM python:3.8.0
+
+WORKDIR /digital_signature_API
+
+ADD . /digital_signature_API
+
+RUN pip install -r requirements.txt
+
+EXPOSE 5678
+
+CMD python server.py

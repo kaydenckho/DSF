@@ -1,0 +1,42 @@
+version: '3.8'
+services:
+  python:
+    container_name: 'Digital-Signature-API'
+    build:
+      context: .
+      dockerfile: dockerfile
+    ports:
+      - 5678:5678
+    volumes: 
+      - '.:/digital_signature_API'
+    networks:
+      - backend
+  db:
+    container_name: 'Digital-Signature-API-MySQL'
+    image: 'mysql:latest'
+    command: --default-authentication-plugin=mysql_native_password
+    restart: 'always'
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=1
+      - MYSQL_DATABASE=Digital-Signature-API
+      - MYSQL_ROOT_PASSWORD=123
+    ports:
+      - 3309:3309
+    volumes:
+      - mysql:/local/mysql
+    networks:
+      - backend
+  adminer:
+    image: adminer
+    restart: unless-stopped
+    ports:
+      - 8080:8080
+    networks:
+      - backend
+    depends_on: 
+      - db
+networks:
+  backend:
+    driver: bridge
+volumes:
+  mysql:
