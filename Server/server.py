@@ -24,7 +24,7 @@ def create_tables():
     sql = 'CREATE TABLE IF NOT EXISTS users (id INT(255) UNSIGNED AUTO_INCREMENT PRIMARY KEY, username VARCHAR(256) NOT NULL, password VARCHAR(256) NOT NULL, certificate TEXT, reg_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)'
     cursor.execute(sql)
     db.commit()
-    sql = 'CREATE TABLE IF NOT EXISTS files (FID INT(255) UNSIGNED AUTO_INCREMENT PRIMARY KEY, filename VARCHAR(30) NOT NULL, content LONGBLOB NOT NULL, signature TINYBLOB NOT NULL, source TEXT NOT NULL, destination TEXT NOT NULL, reg_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)'
+    sql = 'CREATE TABLE IF NOT EXISTS files (FID INT(255) UNSIGNED AUTO_INCREMENT PRIMARY KEY, filename VARCHAR(30) NOT NULL, content LONGBLOB NOT NULL, signature BLOB NOT NULL, source TEXT NOT NULL, destination TEXT NOT NULL, reg_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)'
     cursor.execute(sql)
     db.commit()
     cursor.close()
@@ -36,7 +36,7 @@ create_tables()
 def get_certificates():
     db = getMysqlConnection()
     cursor = db.cursor(prepared=True)
-    sql = 'SELECT username, certificate FROM users'
+    sql = 'SELECT username, certificate FROM users WHERE certificate IS NOT NULL'
     cursor.execute(sql)
     data = cursor.fetchall()
     jsondata = {}

@@ -3,11 +3,12 @@ import os, sys
 import hashlib
 import getpass
 import requests
+from Crypto.Cipher import AES
 
 requests.packages.urllib3.disable_warnings() 
-client_repo_folder_name = "Client Repository"
+client_repo_folder_name = "client_repository"
 certificate_repo_filename = "certificate.dat"
-private_key_repo_filename = "private Key.dat"
+private_key_repo_filename = "private_key.dat"
 file_archival_repo_folder_name = "Document Archival"
 
 client_repo_folder = os.path.join(os.getcwd(), client_repo_folder_name)
@@ -33,7 +34,7 @@ def get_credentials():
 
 def generate_keys():
 	# generate RSA key pairs
-	pubkey, privkey = rsa.newkeys(512)
+	pubkey, privkey = rsa.newkeys(1024)
 	certificate_public = str({"n":pubkey.n, "e":pubkey.e})
 	certificate_private = str({"n":privkey.n, "e":privkey.e, "d":privkey.d, "p":privkey.p, "q":privkey.q})
 	return certificate_public, certificate_private
@@ -53,47 +54,71 @@ def menu(userid, password):
 
 	def upload():
 		file_path = input("File Path: ")
+		if not (os.path.exists(file_path) and os.path.isfile(file_path)):
+			print("!!! File Not Found !!!")
+			menu(userid_hash, password_hash)
+			return
 		destination = input("Destination: ").upper()
 		destination_hash = str(hashlib.sha256(destination.encode()).hexdigest())
 		file_path = file_path.replace('"','')
 		filename = os.path.basename(file_path)
-
-		# load private key
+		# load private key of sender
 		with open(os.path.join(client_repo_folder, private_key_repo_filename), "r") as f:
 			priv_key_file = eval(f.read())
 		priv_key = rsa.PrivateKey(**priv_key_file)
 
 		with open(file_path, "rb") as f:
 			file_bytes = f.read()
-		signature = str(rsa.sign(file_bytes, priv_key, 'SHA-256'))
+		signature = rsa.sign(file_bytes, priv_key, 'SHA-256')
 
-		url = server_domain + 'upload_file'
-		data = {
-		"username": (None, userid_hash),
-		"password": (None, password_hash),
-		"content": (filename, file_bytes),
-		"signature": ('signature_file', signature),
-		"destination": (None, destination_hash)
-		}
-		try:
-			response = post_request(url, data)
-		except:
-			print("!!! Network error !!!")
-			menu(userid_hash, password_hash)
-			return
-		response_json = response.json()
-		if response_json['statusCode'] == 'OK':
-			if response_json['description'] == 'Uploaded':
-				print("Uploaded Successfully.")
-			if response_json['description'] == 'Invalid Destination':
-				print("!!! Invalid Destination !!!")
-			if response_json['description'] == 'Server Error':
-				print("!!! Server Error !!!")
-			menu(userid_hash, password_hash)
-			return
+		# load public key of receiver
+		with open(os.path.join(client_repo_folder, certificate_repo_filename), "r") as f:
+			pub_key_file = eval(f.read())
+		if (pub_key_file.get(destination_hash) != None and destination_hash != userid_hash):
+			# generate designated verifier signature
+			random_bits = rsa.randnum.read_random_bits(128)
+			aes_key = AES.new(random_bits, AES.MODE_EAX)
+			nonce = aes_key.nonce
+			signature_enc, tag = aes_key.encrypt_and_digest(signature)
+
+			# encrypt AES-128 key using RSA public key
+			pub_key_dest = rsa.PublicKey(**pub_key_file.get(destination_hash))
+			aes_key_enc = rsa.encrypt(random_bits, pub_key_dest)
+			signature = str({aes_key_enc, nonce, signature_enc, tag})
+			# generate designated verifier signature
+
+			url = server_domain + 'upload_file'
+			data = {
+			"username": (None, userid_hash),
+			"password": (None, password_hash),
+			"content": (filename, file_bytes),
+			"signature": ('signature_file', signature),
+			"destination": (None, destination_hash)
+			}
+			try:
+				response = post_request(url, data)
+			except:
+				print("!!! Network error !!!")
+				menu(userid_hash, password_hash)
+				return
+			response_json = response.json()
+			if response_json['statusCode'] == 'OK':
+				if response_json['description'] == 'Uploaded':
+					print("Uploaded Successfully.")
+				if response_json['description'] == 'Invalid Destination':
+					print("!!! Invalid Destination !!!")
+				if response_json['description'] == 'Server Error':
+					print("!!! Server Error !!!")
+				menu(userid_hash, password_hash)
+				return
+			else:
+				print("!!! Authentication Failed !!!")
+				login()
+				return
 		else:
-			print("!!! Authentication Failed !!!")
-			login()
+			print("!!! Invalid Destination !!!")
+			menu(userid_hash, password_hash)
+
 		
 	def download():
 		a = 0
@@ -148,14 +173,6 @@ def login():
 		os.mkdir(client_repo_folder)
 	if not os.path.exists(file_archival_repo_folder):
 		os.mkdir(file_archival_repo_folder)
-	url = server_domain + 'get_certificates'
-	response = get_request(url)
-	certificate_list = eval(response.text)
-	key_list = list(certificate_list.keys())
-	for i in range(len(certificate_list)):
-		certificate_list[key_list[i]] = eval(certificate_list.get(key_list[i]))
-	with open(os.path.join(client_repo_folder, certificate_repo_filename), "w+") as f:
-			f.write(str(certificate_list))
 	if not os.path.exists(os.path.join(client_repo_folder, private_key_repo_filename)):
 		certificate_public, certificate_private = generate_keys()
 		with open(os.path.join(client_repo_folder, private_key_repo_filename), "w+") as f:
@@ -183,8 +200,17 @@ def login():
 			print("!!! Invalid Certificate !!!")
 			login()
 			return
-		menu(userid_hash, password_hash)
-		return
+		else:
+			url = server_domain + 'get_certificates'
+			response = get_request(url)
+			certificate_list = eval(response.text)
+			key_list = list(certificate_list.keys())
+			for i in range(len(certificate_list)):
+				certificate_list[key_list[i]] = eval(certificate_list.get(key_list[i]))
+			with open(os.path.join(client_repo_folder, certificate_repo_filename), "w+") as f:
+					f.write(str(certificate_list))
+			menu(userid_hash, password_hash)
+			return
 	elif response_json['statusCode'] == 'FAIL':
 		print("!!! Authentication Failed !!!")
 	login()
