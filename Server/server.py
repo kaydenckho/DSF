@@ -25,7 +25,7 @@ def create_tables():
     sql = 'CREATE TABLE IF NOT EXISTS users (id INT(255) UNSIGNED AUTO_INCREMENT PRIMARY KEY, username VARCHAR(256) NOT NULL, password VARCHAR(256) NOT NULL, certificate TEXT, reg_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)'
     cursor.execute(sql)
     db.commit()
-    sql = 'CREATE TABLE IF NOT EXISTS files (FID INT(255) UNSIGNED AUTO_INCREMENT PRIMARY KEY, filename VARCHAR(30) NOT NULL, content LONGBLOB NOT NULL, signature BLOB NOT NULL, source TEXT NOT NULL, destination TEXT NOT NULL, reg_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)'
+    sql = 'CREATE TABLE IF NOT EXISTS files (FID INT(255) UNSIGNED AUTO_INCREMENT PRIMARY KEY, filename VARCHAR(30) NOT NULL, content LONGBLOB NOT NULL, signature BLOB NOT NULL, source TEXT NOT NULL, destination TEXT NOT NULL, availability TINYINT(1) NOT NULL DEFAULT 1, reg_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)'
     cursor.execute(sql)
     db.commit()
     cursor.close()
@@ -117,6 +117,9 @@ def update_cert():
             sql = 'UPDATE users SET certificate = %s WHERE username = %s and password = %s'
             cursor.execute(sql, (certificate, username, password))
             db.commit()
+            sql = 'UPDATE files SET availability = 0 WHERE source = %s'
+            cursor.execute(sql, (username,))
+            db.commit()
     cursor.close()
     db.close()
     response = {
@@ -192,7 +195,7 @@ def get_file_list():
         return response
     db = getMysqlConnection()
     cursor = db.cursor(prepared=True)
-    sql = 'SELECT FID, filename, source FROM files WHERE destination = %s'
+    sql = 'SELECT FID, filename, source FROM files WHERE destination = %s and availability = 1'
     cursor.execute(sql, (username,))
     result = cursor.fetchall()
     jsondata = {}
@@ -217,7 +220,7 @@ def download_file():
 
     db = getMysqlConnection()
     cursor = db.cursor(raw=True)
-    sql = 'SELECT * FROM files WHERE FID = %s'
+    sql = 'SELECT * FROM files WHERE FID = %s and availability = 1'
     cursor.execute(sql, (fileID,))
     result = cursor.fetchone()
     rc = cursor.rowcount
@@ -258,7 +261,7 @@ def download_signature():
 
     db = getMysqlConnection()
     cursor = db.cursor(raw=True)
-    sql = 'SELECT * FROM files WHERE FID = %s'
+    sql = 'SELECT * FROM files WHERE FID = %s and availability = 1'
     cursor.execute(sql, (fileID,))
     result = cursor.fetchone()
     rc = cursor.rowcount

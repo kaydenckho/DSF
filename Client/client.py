@@ -210,12 +210,16 @@ def menu(userid, password):
 		menu(userid, password_hash)
 
 	def update_cert():
+		print("Warning: The files you uploaded before will no longer available after updating certificate.")
+		print("--- Please enter your User ID and Password to reconfirm. ---")
+		reconfirm_username, reconfirm_password = get_credentials()
+
 		certificate_public, certificate_private = generate_keys()
 
 		url = server_domain + 'update_cert'
 		data = {
-		"username": (None, userid),
-		"password": (None, password_hash),
+		"username": (None, reconfirm_username),
+		"password": (None, reconfirm_password),
 		"certificate": (None, certificate_public)
 		}
 		try:
@@ -227,8 +231,13 @@ def menu(userid, password):
 		response_json = response.json()
 		if response_json['statusCode'] == 'OK':
 			if response_json['description'] == 'Updated':
-				with open("Client Repository/Private Key.dat", "w") as f:
+				with open(os.path.join(client_repo_folder, private_key_repo_filename), "w") as f:
 					data = f.write(str(certificate_private))
+				with open(os.path.join(client_repo_folder, certificate_repo_filename), "r") as f:
+					pub_key_file = eval(f.read())
+				pub_key_file[reconfirm_username] = certificate_public
+				with open(os.path.join(client_repo_folder, certificate_repo_filename), "w") as f:
+					f.write(str(pub_key_file))
 				print("Updated Successfully.")
 			menu(userid, password_hash)
 			return
