@@ -13,11 +13,12 @@ def getMysqlConnection():
             'user': 'root',
             'password': '123',
             'database': 'Digital-Signature-API',
-            'auth_plugin':'mysql_native_password'
+            'auth_plugin':'mysql_native_password',
         }
     connection = mysql.connector.connect(**config)
     return connection
 
+# DB Init
 def create_tables():
     db = getMysqlConnection()
     cursor = db.cursor(prepared=True)
@@ -31,6 +32,9 @@ def create_tables():
     db.close()
 
 create_tables()
+# DB Init
+
+
 
 @app.route('/get_certificates', methods=['GET'])
 def get_certificates():
@@ -155,7 +159,7 @@ def upload_file():
         if rc > 0 :
             status_code = "OK"
             # Check whether destination is valid
-            sql = 'SELECT * FROM users WHERE username = %s'
+            sql = 'SELECT * FROM users WHERE username = %s and certificate IS NOT NULL'
             cursor.execute(sql, (destination,))
             result = cursor.fetchone()
             rc = cursor.rowcount
@@ -173,6 +177,112 @@ def upload_file():
         "description":description
         }
     return response
+
+@app.route('/get_file_list', methods=['POST'])
+def get_file_list():
+    status_code = "FAIL"
+    description = "Server Error"
+    try:
+        username = str(request.form['username'])
+    except:
+        response = {
+        "statusCode":status_code,
+        "description":description
+        }
+        return response
+    db = getMysqlConnection()
+    cursor = db.cursor(prepared=True)
+    sql = 'SELECT FID, filename, source FROM files WHERE destination = %s'
+    cursor.execute(sql, (username,))
+    result = cursor.fetchall()
+    jsondata = {}
+    for i in result:
+        jsondata[i[0]] = [i[1], i[2]]
+    cursor.close()
+    db.close()
+    return jsondata
+
+@app.route('/download_file', methods=['POST'])
+def download_file():
+    status_code = "FAIL"
+    description = "Server Error"
+    try:
+        fileID = str(request.form['FID'])
+    except:
+        response = {
+        "statusCode":status_code,
+        "description":description
+        }
+        return response
+
+    db = getMysqlConnection()
+    cursor = db.cursor(raw=True)
+    sql = 'SELECT * FROM files WHERE FID = %s'
+    cursor.execute(sql, (fileID,))
+    result = cursor.fetchone()
+    rc = cursor.rowcount
+    if rc > 0 :
+        status_code = "OK"
+        description = "Downloaded file"
+        response = make_response(result[2])
+        response.headers['Content-Type'] = 'application/octet-stream'
+        response.headers['Json'] = {
+        "statusCode":status_code,
+        "description":description,
+        "fileID":result[0].decode(),
+        "filename":result[1].decode()
+        }
+        return response
+    else:
+        status_code = "OK"
+        description = "No files"
+        response = make_response()
+        response.headers['Json'] = {
+            "statusCode":status_code,
+            "description":description
+        }
+        return response
+
+@app.route('/download_signature', methods=['POST'])
+def download_signature():
+    status_code = "FAIL"
+    description = "Server Error"
+    try:
+        fileID = str(request.form['FID'])
+    except:
+        response = {
+        "statusCode":status_code,
+        "description":description
+        }
+        return response
+
+    db = getMysqlConnection()
+    cursor = db.cursor(raw=True)
+    sql = 'SELECT * FROM files WHERE FID = %s'
+    cursor.execute(sql, (fileID,))
+    result = cursor.fetchone()
+    rc = cursor.rowcount
+    if rc > 0 :
+        status_code = "OK"
+        description = "Downloaded signature"
+        response = make_response(result[3])
+        response.headers['Content-Type'] = 'application/octet-stream'
+        response.headers['Json'] = {
+        "statusCode":status_code,
+        "description":description,
+        "fileID":result[0].decode(),
+        "filename":result[1].decode()
+        }
+        return response
+    else:
+        status_code = "OK"
+        description = "No files"
+        response = make_response()
+        response.headers['Json'] = {
+            "statusCode":status_code,
+            "description":description
+        }
+        return response
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5678, ssl_context=context)
