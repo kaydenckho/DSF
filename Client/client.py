@@ -37,7 +37,7 @@ def get_credentials():
 
 def generate_keys():
 	# generate RSA key pairs
-	pubkey, privkey = rsa.newkeys(1024)
+	pubkey, privkey = rsa.newkeys(2046)
 	certificate_public = str({"n":pubkey.n, "e":pubkey.e})
 	certificate_private = str({"n":privkey.n, "e":privkey.e, "d":privkey.d, "p":privkey.p, "q":privkey.q})
 	return certificate_public, certificate_private
@@ -87,8 +87,10 @@ def menu(userid, password):
 			# encrypt AES-128 key using RSA public key
 			pub_key_dest = rsa.PublicKey(**pub_key_file.get(destination))
 			aes_key_enc = rsa.encrypt(random_bits, pub_key_dest)
-			signature = str([aes_key_enc, nonce, signature_enc, tag])
+			
 			# generate designated verifier signature
+			signature = str([aes_key_enc, nonce, signature_enc, tag])
+
 
 			url = server_domain + 'upload_file'
 			data = {
@@ -127,6 +129,7 @@ def menu(userid, password):
 		url = server_domain + 'get_file_list'
 		data = {
 		"username": (None, userid),
+		"password": (None, password_hash)
 		}
 		try:
 			response = post_request(url, data)
@@ -156,6 +159,8 @@ def menu(userid, password):
 				url2 = server_domain + 'download_signature'
 				if not user_input == "-all":
 					data = {
+					"username": (None, userid),
+					"password": (None, password_hash),
 					"FID": (None, eval(user_input))
 					}
 					try:
@@ -178,10 +183,12 @@ def menu(userid, password):
 						signature_filename = filename + ".signature"
 						with open(os.path.join(signature_archival_repo_folder,signature_filename),"wb+") as f:
 							f.write(file_content)
-					print(filename + " was downloaded successfully.")
+					print(filename + " is downloaded successfully.")
 				else:
 					for fileID in response_json.keys():
 						data = {
+						"username": (None, userid),
+						"password": (None, password_hash),
 						"FID": (None, eval(fileID))
 						}
 						try:
@@ -204,7 +211,7 @@ def menu(userid, password):
 							signature_filename = filename + ".signature"
 							with open(os.path.join(signature_archival_repo_folder,signature_filename),"wb") as f:
 								f.write(file_content)
-					print("All files were downloaded successfully.")
+					print("All files are downloaded successfully.")
 		else:
 			print("There is no available file.")
 		menu(userid, password_hash)
@@ -316,7 +323,10 @@ def menu(userid, password):
 		# VERIFY SIGNATURE
 
 	def exit():
-		sys.exit()
+		try:
+			sys.exit(0)
+		finally:
+			print("Successfully exited.")
 
 	option = input("\n--- Digital Signature API ---\n\t--- Menu ---\n(1)Upload File\n(2)Download File\n(3)Update Certificate\n(4)Verify Signature File\n(5)Exit\n\nPlease enter a number(1-5): ")
 	functions = {'1':upload, '2':download, '3':update_cert, '4':verify, '5':exit}
@@ -337,6 +347,7 @@ def login():
 	if not os.path.exists(signature_archival_repo_folder):
 		os.mkdir(signature_archival_repo_folder)
 	if not os.path.exists(os.path.join(client_repo_folder, private_key_repo_filename)):
+		print("Generating RSA Key Pair.. Please wait.")
 		certificate_public, certificate_private = generate_keys()
 		with open(os.path.join(client_repo_folder, private_key_repo_filename), "w+") as f:
 			f.write(certificate_private)

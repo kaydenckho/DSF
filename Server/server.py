@@ -187,6 +187,7 @@ def get_file_list():
     description = "Server Error"
     try:
         username = str(request.form['username'])
+        password = str(request.form['password'])
     except:
         response = {
         "statusCode":status_code,
@@ -210,6 +211,8 @@ def download_file():
     status_code = "FAIL"
     description = "Server Error"
     try:
+        username = str(request.form['username'])
+        password = str(request.form['password'])
         fileID = str(request.form['FID'])
     except:
         response = {
@@ -251,6 +254,8 @@ def download_signature():
     status_code = "FAIL"
     description = "Server Error"
     try:
+        username = str(request.form['username'])
+        password = str(request.form['password'])
         fileID = str(request.form['FID'])
     except:
         response = {
