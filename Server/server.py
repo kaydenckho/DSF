@@ -117,8 +117,8 @@ def update_cert():
             sql = 'UPDATE users SET certificate = %s WHERE username = %s and password = %s'
             cursor.execute(sql, (certificate, username, password))
             db.commit()
-            sql = 'UPDATE files SET availability = 0 WHERE source = %s'
-            cursor.execute(sql, (username,))
+            sql = 'UPDATE files SET availability = 0 WHERE source = %s or destination = %s'
+            cursor.execute(sql, (username,username))
             db.commit()
     cursor.close()
     db.close()

@@ -217,10 +217,11 @@ def menu(userid, password):
 		menu(userid, password_hash)
 
 	def update_cert():
-		print("Warning: The files you uploaded before will no longer available after updating certificate.")
+		print("Warning: The files you uploaded/received before will no longer available after updating certificate.")
 		print("--- Please enter your User ID and Password to reconfirm. ---")
 		reconfirm_username, reconfirm_password = get_credentials()
-
+		
+		print("Generating RSA Key Pair.. Please wait.")
 		certificate_public, certificate_private = generate_keys()
 
 		url = server_domain + 'update_cert'
