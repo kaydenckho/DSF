@@ -17,7 +17,7 @@ client_repo_folder = os.path.join(os.getcwd(), client_repo_folder_name)
 file_archival_repo_folder = os.path.join(client_repo_folder, file_archival_repo_folder_name)
 signature_archival_repo_folder = os.path.join(file_archival_repo_folder, signature_archival_repo_folder_name)
 
-server_domain = "https://192.168.1.102:5678/"
+server_domain = "https://192.168.3.102:5678/"
 
 # utility functions
 def get_credentials():
